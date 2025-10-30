@@ -12,7 +12,7 @@ public class Reserva {
     private LocalDateTime fim;
     private StatusReserva status;
     private Funcionario funcionario;
-    int convidados;
+    private int convidados;
     private long valor;
     public enum StatusReserva {
     ATIVA, CANCELADA, FINALIZADA
