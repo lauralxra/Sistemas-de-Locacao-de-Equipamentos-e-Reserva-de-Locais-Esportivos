@@ -26,14 +26,7 @@ public class ReservaService {
                return false;
            }
        }
-       for(Map.Entry<Equipamento, Integer> entry : novaReserva.getEquipamentos().entrySet()){
-           Equipamento equipamento = entry.getKey();
-           int quantidadeReservada = entry.getValue();
-           if(quantidadeReservada > equipamento.getQuantidade()){
-               throw new IllegalArgumentException("Erro: Tentando reservar" + quantidadeReservada + " unidades de" + equipamento.getNome() + ", mas só há" + equipamento.getQuantidade() + " disponiveis");
 
-           }
-       }
        if(novaReserva.getFuncionario().getAutorizacao() == Funcionario.Autorizacao.NAOAUTORIZADO){
            System.out.println("Funcionario não autorizado");
            return false;

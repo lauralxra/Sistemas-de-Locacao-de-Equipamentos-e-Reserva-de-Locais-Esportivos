@@ -1,6 +1,6 @@
 package service;
 
-import model.Reserva;
+import model.*;
 import service.ReservaService;
 
 import java.time.Duration;
@@ -26,12 +26,12 @@ public class RelatorioService {
             System.out.println("condicao do local da reserva :" + reserva.getLocal().getCondicao());
             System.out.println("duracao da reserva: " + duracao);
             System.out.printf("taxa de ocupacao: %d / %d\n", reserva.getConvidados(), reserva.getLocal().getCapacidade());
-            System.out.println("equipamentos alugados:" + reserva.getNomeEquipamentos());
             System.out.println("Status da reserva:" + reserva.getStatus());
+
         }
         }
 
         return reservas;
-
     }
+
 }

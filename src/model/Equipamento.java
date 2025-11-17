@@ -4,7 +4,7 @@ public class Equipamento {
     private String nome;
     private String tipo;
     private int quantidade;
-    private double valor;
+    private long valor;
     public enum Condicao{
         DISPONIVEL,
         RESERVADO,
@@ -12,7 +12,7 @@ public class Equipamento {
         EMUSO
     }
     private Condicao condicao;
-    public Equipamento(String nome, String tipo, int quantidade, double valor, Condicao condicao) {
+    public Equipamento(String nome, String tipo, int quantidade, long valor, Condicao condicao) {
         this.nome = nome;
         this.tipo = tipo;
         this.quantidade = quantidade;
@@ -48,7 +48,7 @@ public class Equipamento {
         return valor;
     }
 
-    public void setValor(double valor) {
+    public void setValor(long valor) {
         this.valor = valor;
     }
 

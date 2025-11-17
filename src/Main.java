@@ -12,6 +12,7 @@ public class Main {
     public static void main(String[] args) {
 
         Equipamento bola = new Equipamento("bola", "bola", 3, 10, Equipamento.Condicao.DISPONIVEL);
+
         Funcionario funcionario1 = new Funcionario("carlinhos", "22342", Funcionario.Autorizacao.AUTORIZADO);
         Funcionario funcionario2 = new Funcionario("jonas", "575837", Funcionario.Autorizacao.NAOAUTORIZADO);
         Equipamento raquete = new Equipamento("raquete", "equipamento", 5, 10, Equipamento.Condicao.DISPONIVEL);
@@ -31,11 +32,10 @@ public class Main {
         ReservaService service = new ReservaService();
         RelatorioService relatorioService = new RelatorioService(service);
 
-        Reserva reserva1 = new Reserva(1,20, cliente, Reserva.StatusReserva.ATIVA, quadra, LocalDateTime.now(), LocalDateTime.now().plusDays(1), equipamentosReserva1, funcionario1);
-        Reserva reserva2 = new Reserva(2,30, cliente2, Reserva.StatusReserva.ATIVA, campo, LocalDateTime.now(), LocalDateTime.now().plusDays(2), equipamentosReserva2, funcionario1);
-        service.criarReserva(reserva1);
+        Reserva reserva1 = new Reserva(1,20, cliente, Reserva.StatusReserva.ATIVA, quadra, LocalDateTime.now(), LocalDateTime.now().plusDays(1), funcionario1);
+        Reserva reserva2 = new Reserva(2,30, cliente2, Reserva.StatusReserva.ATIVA, campo, LocalDateTime.now(), LocalDateTime.now().plusDays(2), funcionario1);
         service.criarReserva(reserva2);
-        Reserva reserva3 = new Reserva(4, 40, cliente2, Reserva.StatusReserva.ATIVA, campo, LocalDateTime.now(), LocalDateTime.now().plusDays(4), null, funcionario2);
+        Reserva reserva3 = new Reserva(4, 40, cliente2, Reserva.StatusReserva.ATIVA, campo, LocalDateTime.now(), LocalDateTime.now().plusDays(4), null);
         service.criarReserva(reserva3);
         relatorioService.listarReservas();
         //até aqui eu testei a criação de reservas e o cancelamento

@@ -6,7 +6,7 @@ import java.util.*;
 public class Reserva {
     private int idReserva;
     private Cliente cliente;
-    private Map<Equipamento, Integer> equipamentos;
+    private Locacao locacao;
     private LocalEsportivo local;
     private LocalDateTime inicio;
     private LocalDateTime fim;
@@ -17,7 +17,7 @@ public class Reserva {
     public enum StatusReserva {
     ATIVA, CANCELADA, FINALIZADA
     }
-    public Reserva(int idReserva, int convidados, Cliente cliente, StatusReserva status, LocalEsportivo local, LocalDateTime inicio, LocalDateTime fim, Map<Equipamento, Integer> equipamentos, Funcionario funcionario) {
+    public Reserva(int idReserva, int convidados, Cliente cliente, StatusReserva status, LocalEsportivo local, LocalDateTime inicio, LocalDateTime fim, Funcionario funcionario) {
         this.idReserva = idReserva;
         this.cliente = cliente;
         this.convidados = convidados;
@@ -26,19 +26,7 @@ public class Reserva {
         this.local = local;
         this.inicio = inicio;
         this.fim = fim;
-        if (equipamentos == null) {
-            this.equipamentos = new HashMap<>();
-        } else {
-            this.equipamentos = equipamentos;
-            this.status = StatusReserva.ATIVA;
-            this.convidados = convidados;
-            for (Map.Entry<Equipamento, Integer> entry : equipamentos.entrySet()) {
-                Equipamento equipamento = entry.getKey();
-                int quantidade = entry.getValue();
-                valor += (long) equipamento.getValor();
-            }
-            valor += (long) local.getValor();
-        }
+
     }
     public Cliente getCliente() {
         return cliente;
@@ -46,25 +34,7 @@ public class Reserva {
     public void setCliente(Cliente cliente) {
         this.cliente = cliente;
     }
-    public Map<Equipamento, Integer> getEquipamentos() {
-        return equipamentos;
-    }
-    public String getNomeEquipamentos() {
-        if (equipamentos.isEmpty()) {
-            return " Nenhum equipamento alugado.";
-        }
-        StringBuilder nomes = new StringBuilder();
-        for (Map.Entry<Equipamento, Integer> entry : equipamentos.entrySet()) {
-            Equipamento e = entry.getKey();
-            int quantidade = entry.getValue();
-            nomes.append(String.format("\n  - %s (Quantidade: %d)", e.getNome(), quantidade));
-        }
-        return nomes.toString();
-    }
-    public void setEquipamentos(Map<Equipamento, Integer> equipamentos) {
-        this.equipamentos = equipamentos;
 
-    }
 
     public LocalEsportivo getLocal() {
         return local;
@@ -125,5 +95,11 @@ public class Reserva {
     }
     public void setFuncionario(Funcionario funcionario) {
         this.funcionario = funcionario;
+    }
+    public Locacao getLocacao() {
+        return locacao;
+    }
+    public void setLocacao(Locacao locacao) {
+        this.locacao = locacao;
     }
 }
