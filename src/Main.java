@@ -63,23 +63,23 @@ public class Main {
             System.out.println("Erro ao criar locação: " + e.getMessage());
         }
 
-        relatorioService.listarLocacoesPorCliente("123.456.789-00");
+        relatorioService.gerarPdfHistoricoCliente("123.456.789-00", "historico cliente: .pdf");
         //até aqui eu testei a criação de reservas e o cancelamento
         //implementei o requerimento de reservas de equipamentos dando erro se não tiver quantidade
         //implementei a reserva de locais sem equipamentos
         //comecei a implementar os relatorios
-        relatorioService.listarReservasPorCliente("123.456.789-00");
         equipamentosLocacao.forEach((equip, qtd) -> {
             System.out.println("Equipamento: " + equip.getNome());
             System.out.println("Condição: " + equip.getCondicao());
         });
-        relatorioService.relatorioEquipamentosMaisUsados(LocalDateTime.now(), LocalDateTime.now().plusDays(5));
-        relatorioService.gerarRelatorioClientesMaisAtivos(LocalDateTime.now(), LocalDateTime.now().plusDays(5));
+        relatorioService.gerarPdfEquipamentosMaisUsados(LocalDateTime.now(), LocalDateTime.now().plusDays(5), "Equipamentos mais usados.pdf");
+        relatorioService.gerarPdfClientesMaisAtivos(LocalDateTime.now(), LocalDateTime.now().plusDays(5), "Clientes mais ativos.pdf");
 
 
 
 
         relatorioService.gerarPdfLocaisMaisUsados(LocalDateTime.now(), LocalDateTime.now().plusDays(6), "relatorio.pdf");
+        relatorioService.gerarPdfHistoricoCliente("123.456.789-00", "Historico_Cliente_123.pdf");
     }
 
 

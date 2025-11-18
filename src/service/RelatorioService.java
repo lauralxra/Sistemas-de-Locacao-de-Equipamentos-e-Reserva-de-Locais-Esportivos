@@ -69,7 +69,7 @@ public class RelatorioService {
 
         List<Reserva> reservasFiltradas = reservaService.getReservas().stream()
                 .filter(r -> r.getCliente() != null &&
-                        r.getCliente().getDocumento().equals(documentoCliente)) // ← CORREÇÃO AQUI
+                        r.getCliente().getDocumento().equals(documentoCliente))
                 .toList();
 
         if (reservasFiltradas.isEmpty()) {
@@ -92,115 +92,181 @@ public class RelatorioService {
         return reservasFiltradas;
     }
 
-    public List<Locacao> listarLocacoesPorCliente(String documentoCliente) {
 
-        List<Locacao> locacoes = locacaoService.getLocacoes().stream()
-                .filter(l -> l.getCliente() != null &&
-                        l.getCliente().getDocumento().equals(documentoCliente))
-                .toList();
+    public void gerarPdfHistoricoCliente(String documentoCliente, String nomeArquivo) {
+        Document document = new Document();
+        try {
+            PdfWriter.getInstance(document, new FileOutputStream(nomeArquivo));
+            document.open();
 
-        if (locacoes.isEmpty()) {
-            System.out.println("\nNenhuma locação encontrada para o cliente: " + documentoCliente);
-            return locacoes;
-        }
+            Font fontTitulo = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16);
+            Font fontSubtitulo = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14, Font.UNDERLINE);
+            Font fontNormal = FontFactory.getFont(FontFactory.HELVETICA, 12);
 
-        System.out.println("\n===== LOCAÇÕES DO CLIENTE: " + documentoCliente + " =====");
-        locacoes.forEach(this::imprimirLocacao);
+            document.add(new Paragraph("HISTÓRICO DO CLIENTE: " + documentoCliente, fontTitulo));
+            document.add(new Paragraph(" ")); // Espaço em branco
 
-        return locacoes;
-    }
-    public void relatorioEquipamentosMaisUsados(LocalDateTime inicio, LocalDateTime fim) {
+            // --- SEÇÃO DE RESERVAS ---
+            document.add(new Paragraph("RESERVAS DE ESPAÇO", fontSubtitulo));
 
-        System.out.println("\n===== RELATÓRIO DE EQUIPAMENTOS USADOS =====");
-        System.out.println("Período: " + inicio + " até " + fim);
+            List<Reserva> reservas = reservaService.getReservas().stream()
+                    .filter(r -> r.getCliente() != null && r.getCliente().getDocumento().equals(documentoCliente))
+                    .toList();
 
-        // 1. Filtrar locações no período
-        List<Locacao> locacoesPeriodo = locacaoService.getLocacoes().stream()
-                .filter(l -> !l.getInicio().isAfter(fim) && !l.getFim().isBefore(inicio))
-                .toList();
-
-        if (locacoesPeriodo.isEmpty()) {
-            System.out.println("Nenhuma locação encontrada no período.");
-            return;
-        }
-
-        // 2. Map para acumular quantidade total por equipamento
-        Map<Equipamento, Integer> usoEquipamentos = new HashMap<>();
-
-        for (Locacao loc : locacoesPeriodo) {
-            for (Map.Entry<Equipamento, Integer> entry : loc.getEquipamentos().entrySet()) {
-                Equipamento eq = entry.getKey();
-                int qtd = entry.getValue();
-
-                usoEquipamentos.put(eq, usoEquipamentos.getOrDefault(eq, 0) + qtd);
+            if (reservas.isEmpty()) {
+                document.add(new Paragraph("Nenhuma reserva registrada.", fontNormal));
+            } else {
+                for (Reserva r : reservas) {
+                    String texto = String.format("Local: %s | Data: %s | Status: %s",
+                            r.getLocal().getNome(), r.getInicio().toLocalDate(), r.getStatus());
+                    document.add(new Paragraph(texto, fontNormal));
+                }
             }
+
+            document.add(new Paragraph(" ")); // Espaço
+
+            // --- SEÇÃO DE LOCAÇÕES ---
+            document.add(new Paragraph("LOCAÇÕES DE EQUIPAMENTOS", fontSubtitulo));
+
+            List<Locacao> locacoes = locacaoService.getLocacoes().stream()
+                    .filter(l -> l.getCliente() != null && l.getCliente().getDocumento().equals(documentoCliente))
+                    .toList();
+
+            if (locacoes.isEmpty()) {
+                document.add(new Paragraph("Nenhuma locação registrada.", fontNormal));
+            } else {
+                for (Locacao l : locacoes) {
+                    document.add(new Paragraph("De: " + l.getInicio() + " Até: " + l.getFim(), fontNormal));
+                    document.add(new Paragraph("Itens:", fontNormal));
+
+                    // Lista os equipamentos indentados
+                    l.getEquipamentos().forEach((equip, qtd) -> {
+                        Paragraph item = new Paragraph("   • " + equip.getNome() + " (Qtd: " + qtd + ")", fontNormal);
+                        try { document.add(item); } catch (DocumentException e) {}
+                    });
+                    document.add(new Paragraph("-----------------------"));
+                }
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            if(document.isOpen()) document.close();
+            System.out.println("PDF do Cliente gerado: " + nomeArquivo);
         }
+    }
+    public void gerarPdfEquipamentosMaisUsados(LocalDateTime inicio, LocalDateTime fim, String nomeArquivo) {
+        Document document = new Document();
+        try {
+            PdfWriter.getInstance(document, new FileOutputStream(nomeArquivo));
+            document.open();
 
-        // 3. Ordenar por quantidade utilizada (decrescente)
-        List<Map.Entry<Equipamento, Integer>> ranking = usoEquipamentos.entrySet()
-                .stream()
-                .sorted((a, b) -> b.getValue() - a.getValue())
-                .toList();
+            Font fontTitulo = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16);
+            Font fontNormal = FontFactory.getFont(FontFactory.HELVETICA, 12);
 
-        // 4. Imprimir resultado
-        System.out.println("\nEquipamentos mais usados no período:\n");
+            document.add(new Paragraph("EQUIPAMENTOS MAIS UTILIZADOS", fontTitulo));
+            document.add(new Paragraph("Período: " + inicio.toLocalDate() + " a " + fim.toLocalDate(), fontNormal));
+            document.add(new Paragraph(" "));
 
-        int pos = 1;
-        for (Map.Entry<Equipamento, Integer> entry : ranking) {
-            Equipamento eq = entry.getKey();
-            int qtd = entry.getValue();
-            long locacoesComEq = locacoesPeriodo.stream()
-                    .filter(l -> l.getEquipamentos().containsKey(eq))
-                    .count();
 
-            System.out.printf("%d) %s — %d unidades — %d locações\n",
-                    pos++, eq.getNome(), qtd, locacoesComEq);
+            List<Locacao> locacoesPeriodo = locacaoService.getLocacoes().stream()
+                    .filter(l -> !l.getInicio().isAfter(fim) && !l.getFim().isBefore(inicio))
+                    .toList();
+
+            if (locacoesPeriodo.isEmpty()) {
+                document.add(new Paragraph("Nenhum dado no período.", fontNormal));
+                return;
+            }
+
+            Map<Equipamento, Integer> usoEquipamentos = new HashMap<>();
+            for (Locacao loc : locacoesPeriodo) {
+                for (Map.Entry<Equipamento, Integer> entry : loc.getEquipamentos().entrySet()) {
+                    usoEquipamentos.put(entry.getKey(), usoEquipamentos.getOrDefault(entry.getKey(), 0) + entry.getValue());
+                }
+            }
+
+            List<Map.Entry<Equipamento, Integer>> ranking = usoEquipamentos.entrySet()
+                    .stream()
+                    .sorted((a, b) -> b.getValue() - a.getValue())
+                    .toList();
+
+            // Imprimir no PDF
+            int pos = 1;
+            for (Map.Entry<Equipamento, Integer> entry : ranking) {
+                String linha = String.format("%dº LUGAR: %s", pos++, entry.getKey().getNome());
+                String detalhe = String.format("    Total Unidades: %d", entry.getValue());
+
+                document.add(new Paragraph(linha, FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12)));
+                document.add(new Paragraph(detalhe, fontNormal));
+                document.add(new Paragraph(" "));
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            if(document.isOpen()) document.close();
+            System.out.println("PDF Equipamentos gerado: " + nomeArquivo);
         }
     }
     private boolean intersecta(LocalDateTime aInicio, LocalDateTime aFim,
                                LocalDateTime bInicio, LocalDateTime bFim) {
         return !aInicio.isAfter(bFim) && !aFim.isBefore(bInicio);
     }
+    public void gerarPdfClientesMaisAtivos(LocalDateTime inicio, LocalDateTime fim, String nomeArquivo) {
+        Document document = new Document();
+        try {
+            PdfWriter.getInstance(document, new FileOutputStream(nomeArquivo));
+            document.open();
 
-    public void gerarRelatorioClientesMaisAtivos(LocalDateTime inicio, LocalDateTime fim) {
+            Font fontTitulo = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16);
+            Font fontDestaque = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12);
+            Font fontNormal = FontFactory.getFont(FontFactory.HELVETICA, 12);
 
-        Map<String, Integer> contadorClientes = new HashMap<>();
+            document.add(new Paragraph("TOP CLIENTES (MAIS ATIVOS)", fontTitulo));
+            document.add(new Paragraph("Considerando Reservas e Locações", fontNormal));
+            document.add(new Paragraph("Período: " + inicio.toLocalDate() + " a " + fim.toLocalDate()));
+            document.add(new Paragraph(" "));
 
-        // ---- RESERVAS ----
-        for (Reserva reserva : reservaService.getReservas()) {
-            if (intersecta(reserva.getInicio(), reserva.getFim(), inicio, fim)) {
 
-                String cpf = reserva.getCliente().getDocumento();
-                contadorClientes.put(cpf, contadorClientes.getOrDefault(cpf, 0) + 1);
+            Map<String, Integer> contadorClientes = new HashMap<>();
+
+            for (Reserva reserva : reservaService.getReservas()) {
+                if (intersecta(reserva.getInicio(), reserva.getFim(), inicio, fim)) {
+                    String cpf = reserva.getCliente().getDocumento();
+                    contadorClientes.put(cpf, contadorClientes.getOrDefault(cpf, 0) + 1);
+                }
             }
-        }
-
-        // ---- LOCAÇÕES ----
-        for (Locacao locacao : locacaoService.getLocacoes()) {
-            if (intersecta(locacao.getInicio(), locacao.getFim(), inicio, fim)) {
-
-                String cpf = locacao.getCliente().getDocumento();
-                contadorClientes.put(cpf, contadorClientes.getOrDefault(cpf, 0) + 1);
+            for (Locacao locacao : locacaoService.getLocacoes()) {
+                if (intersecta(locacao.getInicio(), locacao.getFim(), inicio, fim)) {
+                    String cpf = locacao.getCliente().getDocumento();
+                    contadorClientes.put(cpf, contadorClientes.getOrDefault(cpf, 0) + 1);
+                }
             }
-        }
 
-        if (contadorClientes.isEmpty()) {
-            System.out.println("Nenhuma atividade encontrada no período.");
-            return;
-        }
+            if (contadorClientes.isEmpty()) {
+                document.add(new Paragraph("Nenhuma atividade registrada no período.", fontNormal));
+            } else {
+                List<Map.Entry<String, Integer>> ranking = new ArrayList<>(contadorClientes.entrySet());
+                ranking.sort((a, b) -> b.getValue().compareTo(a.getValue()));
 
-        List<Map.Entry<String, Integer>> ranking = new ArrayList<>(contadorClientes.entrySet());
-        ranking.sort((a, b) -> b.getValue().compareTo(a.getValue()));
+                int pos = 1;
+                for (Map.Entry<String, Integer> entry : ranking) {
+                    String texto = String.format("#%d - Cliente CPF: %s", pos++, entry.getKey());
+                    String atividades = "      Total de Atividades: " + entry.getValue();
 
-        System.out.println("\n===== CLIENTES MAIS ATIVOS =====");
-        for (Map.Entry<String, Integer> entry : ranking) {
-            System.out.println("Cliente: " + entry.getKey() + " → " + entry.getValue() + " atividades");
+                    document.add(new Paragraph(texto, fontDestaque));
+                    document.add(new Paragraph(atividades, fontNormal));
+                    document.add(new Paragraph("-----------------------"));
+                }
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            if(document.isOpen()) document.close();
+            System.out.println("PDF Clientes Ativos gerado: " + nomeArquivo);
         }
     }
-
-
-// Importar suas classes de modelo (Reserva, Local, etc.)
-
     public void gerarPdfLocaisMaisUsados(LocalDateTime inicio, LocalDateTime fim, String nomeArquivo) {
 
         // 1. Definições Iniciais do PDF
@@ -280,13 +346,7 @@ public class RelatorioService {
                 document.close();
                 System.out.println("✅ Relatório PDF gerado com sucesso: " + nomeArquivo);
             }
+
         }
-    }
-
-
-
-
-
-
-
+        }
 }
