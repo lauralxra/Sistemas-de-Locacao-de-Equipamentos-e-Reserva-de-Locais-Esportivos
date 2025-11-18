@@ -1,8 +1,16 @@
 package service;
 
+import com.lowagie.text.*;
 import model.*;
 import service.ReservaService;
 import service.LocacaoService;
+import com.lowagie.text.DocumentException;
+import com.lowagie.text.pdf.PdfWriter;
+import exceptions.EquipamentoManutencao;
+import exceptions.EstoqueInsuficiente;
+
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -187,6 +195,91 @@ public class RelatorioService {
         System.out.println("\n===== CLIENTES MAIS ATIVOS =====");
         for (Map.Entry<String, Integer> entry : ranking) {
             System.out.println("Cliente: " + entry.getKey() + " → " + entry.getValue() + " atividades");
+        }
+    }
+
+
+// Importar suas classes de modelo (Reserva, Local, etc.)
+
+    public void gerarPdfLocaisMaisUsados(LocalDateTime inicio, LocalDateTime fim, String nomeArquivo) {
+
+        // 1. Definições Iniciais do PDF
+        Document document = new Document();
+
+        try {
+            PdfWriter.getInstance(document, new FileOutputStream(nomeArquivo));
+            document.open();
+
+            // --- INÍCIO: Conteúdo do PDF ---
+
+            // Configuração de Fontes (Opcional, mas recomendado para estilo)
+            Font fontTitulo = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18, Font.UNDERLINE);
+            Font fontCabecalho = FontFactory.getFont(FontFactory.HELVETICA, 12, Font.BOLD);
+            Font fontCorpo = FontFactory.getFont(FontFactory.HELVETICA, 10);
+
+
+            // --- TITULO E PERÍODO ---
+            Paragraph titulo = new Paragraph("RELATÓRIO DE LOCAIS MAIS USADOS", fontTitulo);
+            titulo.setAlignment(Paragraph.ALIGN_CENTER);
+            titulo.setSpacingAfter(15f);
+            document.add(titulo);
+
+            Paragraph periodo = new Paragraph("Período: " + inicio.toLocalDate() + " até " + fim.toLocalDate(), fontCabecalho);
+            periodo.setSpacingAfter(10f);
+            document.add(periodo);
+
+            // --- LÓGICA DO RELATÓRIO (A mesma que você já tinha) ---
+
+            Map<String, Integer> usoLocais = new HashMap<>();
+
+            List<Reserva> reservasPeriodo = reservaService.getReservas().stream()
+                    .filter(r -> r.getLocal() != null && intersecta(r.getInicio(), r.getFim(), inicio, fim))
+                    .toList();
+
+            if (reservasPeriodo.isEmpty()) {
+                document.add(new Paragraph("Nenhuma reserva encontrada no período.", fontCorpo));
+                System.out.println("PDF gerado, mas sem reservas encontradas no período.");
+                return;
+            }
+
+            for (Reserva reserva : reservasPeriodo) {
+                String nomeLocal = reserva.getLocal().getNome();
+                usoLocais.put(nomeLocal, usoLocais.getOrDefault(nomeLocal, 0) + 1);
+            }
+
+            List<Map.Entry<String, Integer>> ranking = usoLocais.entrySet()
+                    .stream()
+                    .sorted((a, b) -> b.getValue() - a.getValue())
+                    .toList();
+
+            // --- GERAÇÃO DO RANKING NO PDF ---
+
+            Paragraph subtitulo = new Paragraph("Ranking de Locais mais reservados:", fontCabecalho);
+            subtitulo.setSpacingBefore(10f);
+            document.add(subtitulo);
+
+            int pos = 1;
+            for (Map.Entry<String, Integer> entry : ranking) {
+                String nomeLocal = entry.getKey();
+                int numReservas = entry.getValue();
+
+                String linha = String.format("%d) %s — %d reservas", pos++, nomeLocal, numReservas);
+
+                // Adiciona a linha como um Parágrafo simples
+                document.add(new Paragraph(linha, fontCorpo));
+            }
+
+            // --- FIM: Conteúdo do PDF ---
+
+        } catch (DocumentException e) {
+            System.err.println("Erro ao gerar PDF (DocumentException): " + e.getMessage());
+        } catch (IOException e) {
+            System.err.println("Erro de IO (arquivo): " + e.getMessage());
+        } finally {
+            if (document.isOpen()) {
+                document.close();
+                System.out.println("✅ Relatório PDF gerado com sucesso: " + nomeArquivo);
+            }
         }
     }
 

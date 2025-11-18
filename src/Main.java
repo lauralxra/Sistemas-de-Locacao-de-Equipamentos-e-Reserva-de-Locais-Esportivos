@@ -1,9 +1,14 @@
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
+import com.lowagie.text.Document;
+import com.lowagie.text.DocumentException;
+import com.lowagie.text.Paragraph;
+import com.lowagie.text.pdf.PdfWriter;
 import exceptions.EquipamentoManutencao;
 import exceptions.EstoqueInsuficiente;
 import model.*;
@@ -12,7 +17,7 @@ import service.*;
 
 public class Main {
     public static void main(String[] args) {
-
+        Document document = new Document();
         Equipamento bola = new Equipamento("bola", "bola", 3, 10, Equipamento.Condicao.DISPONIVEL, 3);
         Equipamento chuteira = new Equipamento("chuteira", "sapato", 4, 5, Equipamento.Condicao.DISPONIVEL, 4);
         Funcionario funcionario1 = new Funcionario("carlinhos", "22342", Funcionario.Autorizacao.AUTORIZADO);
@@ -70,6 +75,11 @@ public class Main {
         });
         relatorioService.relatorioEquipamentosMaisUsados(LocalDateTime.now(), LocalDateTime.now().plusDays(5));
         relatorioService.gerarRelatorioClientesMaisAtivos(LocalDateTime.now(), LocalDateTime.now().plusDays(5));
+
+
+
+
+        relatorioService.gerarPdfLocaisMaisUsados(LocalDateTime.now(), LocalDateTime.now().plusDays(6), "relatorio.pdf");
     }
 
 
