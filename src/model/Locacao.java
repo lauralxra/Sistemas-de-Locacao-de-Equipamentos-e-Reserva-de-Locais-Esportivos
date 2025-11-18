@@ -8,13 +8,16 @@ public class Locacao {
         FINALIZADO,
         CANCELADO,
     }
+    private Cliente cliente;
     private Funcionario funcionario;
     private Map<Equipamento, Integer> equipamentos;
     private LocalDateTime inicio;
     private LocalDateTime fim;
     private long valor;
-    public Locacao(LocalDateTime inicio, LocalDateTime fim, Funcionario funcionario, Map<Equipamento, Integer> equipamentos, StatusLocacao statusLocacao) {
-
+    private boolean devolvido;
+    private int statusLocacao;
+    public Locacao(Cliente cliente, LocalDateTime inicio, LocalDateTime fim, Funcionario funcionario, Map<Equipamento, Integer> equipamentos, StatusLocacao statusLocacao) {
+        this.cliente = cliente;
         this.inicio = inicio;
         this.fim = fim;
         this.funcionario = funcionario;
@@ -55,4 +58,15 @@ public class Locacao {
         return equipamentos;
     }
 
+    public Cliente getCliente() {
+
+        return cliente;
+    }
+
+    public boolean isDevolvido() {
+        return devolvido;
+    }
+    public void setDevolvido(boolean devolvido) {
+        this.devolvido = devolvido;
+    }
 }

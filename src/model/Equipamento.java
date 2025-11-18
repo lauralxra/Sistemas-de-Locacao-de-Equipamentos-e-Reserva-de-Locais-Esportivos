@@ -5,6 +5,8 @@ public class Equipamento {
     private String tipo;
     private int quantidade;
     private long valor;
+    private int quantidadeDisponivel;
+
     public enum Condicao{
         DISPONIVEL,
         RESERVADO,
@@ -12,11 +14,12 @@ public class Equipamento {
         EMUSO
     }
     private Condicao condicao;
-    public Equipamento(String nome, String tipo, int quantidade, long valor, Condicao condicao) {
+    public Equipamento(String nome, String tipo, int quantidade, long valor, Condicao condicao, int quantidadeDisponivel) {
         this.nome = nome;
         this.tipo = tipo;
         this.quantidade = quantidade;
         this.valor = valor;
+        this.quantidadeDisponivel = quantidade;
         this.condicao = Condicao.DISPONIVEL;
     }
 
@@ -58,5 +61,12 @@ public class Equipamento {
 
     public void setCondicao(Condicao condicao) {
         this.condicao = condicao;
+    }
+
+    public int getQuantidadeDisponivel() {
+        return quantidadeDisponivel;
+    }
+    public void setQuantidadeDisponivel(int quantidadeDisponivel) {
+        this.quantidadeDisponivel = quantidadeDisponivel;
     }
 }
