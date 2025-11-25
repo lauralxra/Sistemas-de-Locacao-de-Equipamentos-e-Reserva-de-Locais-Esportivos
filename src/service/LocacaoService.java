@@ -1,63 +1,60 @@
 package service;
 
 import exceptions.EquipamentoManutencao;
+import exceptions.EstoqueInsuficiente;
 import model.Equipamento;
 import model.Locacao;
-import exceptions.EstoqueInsuficiente;
+import repository.LocacaoRepository;
 
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 public class LocacaoService {
 
-    private List<Locacao> locacoes = new ArrayList<>();
-    private EstoqueService estoqueService = new EstoqueService();
+    private EstoqueService estoqueService;
+    private LocacaoRepository locacaoRepository;
 
-    // Criar locação já valida estoque e registra saída
-    public Locacao criarLocacao(Locacao novaLocacao)
-            throws EstoqueInsuficiente, EquipamentoManutencao {
+    public LocacaoService() {
+        this.estoqueService = new EstoqueService();
+        this.locacaoRepository = new LocacaoRepository();
+    }
 
-        // 1. verifica estoque e reserva
+    // Criar locação: Valida estoque -> Registra saída -> Salva no Repositório
+    public Locacao criarLocacao(Locacao novaLocacao) throws EstoqueInsuficiente, EquipamentoManutencao {
+
+        // 1. Delega a baixa de estoque para o serviço responsável
         estoqueService.reservar(novaLocacao.getEquipamentos());
 
-        // 2. salva locação
-        locacoes.add(novaLocacao);
+        // 2. Salva a locação no repositório
+        locacaoRepository.salvar(novaLocacao);
 
-        System.out.println("Locação criada com sucesso!");
+        System.out.println("Locação criada e salva no repositório!");
         return novaLocacao;
     }
 
-
-    // Cálculo do valor total da locação
     public long valorLocacao(Locacao locacao) {
-
         Duration duracao = Duration.between(locacao.getInicio(), locacao.getFim());
         long horas = duracao.toHours();
+        if (horas == 0) horas = 1; // Cobrar no mínimo 1 hora
 
         long total = 0;
-
         for (Map.Entry<Equipamento, Integer> entry : locacao.getEquipamentos().entrySet()) {
             Equipamento eq = entry.getKey();
             int quantidade = entry.getValue();
-
             long valorPorEquipamento = (long) (eq.getValor() * quantidade * horas);
-
             total += valorPorEquipamento;
         }
-
         return total;
     }
 
-    // Devolução dos equipamentos
     public void devolver(Locacao locacao) {
         estoqueService.devolver(locacao.getEquipamentos());
         locacao.setDevolvido(true);
+        // Em um banco de dados real, aqui chamaríamos locacaoRepository.atualizar(locacao);
     }
+
     public List<Locacao> getLocacoes() {
-        return locacoes;
+        return locacaoRepository.listarTodas();
     }
-
-
 }

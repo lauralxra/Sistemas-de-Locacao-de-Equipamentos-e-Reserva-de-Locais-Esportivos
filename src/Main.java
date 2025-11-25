@@ -51,7 +51,7 @@ public class Main {
         Reserva reserva3 = new Reserva(4, 20, cliente2, Reserva.StatusReserva.ATIVA, campo, LocalDateTime.now().plusDays(3), LocalDateTime.now().plusDays(4), funcionario1);
         service.criarReserva(reserva3);
         System.out.println("\n");
-        relatorioService.listarReservas();
+        relatorioService.gerarPdfListaReservas("lista de reservas");
         System.out.println("\n");
         Locacao Locacao1 = new Locacao(cliente, LocalDateTime.now(), LocalDateTime.now().plusDays(2), funcionario1,equipamentosLocacao, Locacao.StatusLocacao.ATIVO);
 

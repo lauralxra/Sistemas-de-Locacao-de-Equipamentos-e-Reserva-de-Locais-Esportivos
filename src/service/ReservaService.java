@@ -1,65 +1,48 @@
 package service;
-import exceptions.CapacidadeExcedida;
-import exceptions.FuncionarioNaoAutorizado;
-import exceptions.LocalJaReservado;
-import model.Equipamento;
-import model.Funcionario;
-import model.LocalEsportivo;
-import model.Reserva;
 
-import java.time.Duration;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
+import exceptions.LocalJaReservado; // Assumindo que você criou essa exception
+import model.Reserva;
+import repository.LocalEsportivoRepository;
+import repository.ReservaRepository;
+
 import java.util.List;
-import java.util.Map;
 
 public class ReservaService {
-    private List<Reserva> reservas = new ArrayList<>();
-    private static final long HORAS_CANCELAMENTO_LIMITE = 2;
 
-    public Reserva criarReserva(Reserva novaReserva) throws CapacidadeExcedida, LocalJaReservado, FuncionarioNaoAutorizado {
-       if(novaReserva.getConvidados() > novaReserva.getLocal().getCapacidade()){
-         throw new CapacidadeExcedida("capacidade de convidados excedida");
+    private ReservaRepository reservaRepository;
+    private LocalEsportivoRepository localRepository;
 
-       }
-       for(Reserva reservaExistente : reservas){
-           if(reservaExistente.getLocal().equals(novaReserva.getLocal()) && reservaExistente.estaAtiva() && horariosConflitam(reservaExistente.getInicio()
-                   , reservaExistente.getFim(), novaReserva.getInicio(), novaReserva.getFim())){
-              throw new LocalJaReservado("Local já reservado nesse horário");
+    public ReservaService() {
+        this.reservaRepository = new ReservaRepository();
+        this.localRepository = new LocalEsportivoRepository();
+    }
 
-           }
-       }
+    public void criarReserva(Reserva novaReserva) throws LocalJaReservado {
+        // 1. Validação: Verifica se o local já está ocupado no horário (Simplificado)
+        List<Reserva> reservasExistentes = reservaRepository.buscarPorLocal(novaReserva.getLocal().getNome());
 
-       if(novaReserva.getFuncionario().getAutorizacao() == Funcionario.Autorizacao.NAOAUTORIZADO){
-           throw new FuncionarioNaoAutorizado("funcionario nao autorizado");
+        for (Reserva r : reservasExistentes) {
+            if (r.estaAtiva() && horariosConflitam(r, novaReserva)) {
+                throw new LocalJaReservado("O local " + novaReserva.getLocal().getNome() + " já está reservado neste horário.");
+            }
+        }
 
-       }
-        reservas.add(novaReserva);
-        System.out.println("Reserva Criada");
-        return novaReserva;
+        // 2. Salva no repositório
+        reservaRepository.salvar(novaReserva);
+        System.out.println("Reserva criada com sucesso!");
+    }
 
+    public List<Reserva> listarReservas() {
+        return reservaRepository.listarTodas();
+    }
+
+    // Lógica auxiliar para verificar colisão de horários
+    private boolean horariosConflitam(Reserva r1, Reserva r2) {
+        return r1.getInicio().isBefore(r2.getFim()) && r1.getFim().isAfter(r2.getInicio());
     }
 
     public void cancelarReserva(Reserva reserva) {
-        LocalDateTime agora = LocalDateTime.now();
-        long horasFaltando = Duration.between(agora, reserva.getInicio()).toHours();
-
-        if (horasFaltando < HORAS_CANCELAMENTO_LIMITE) {
-            System.out.println("Cancelamento tarde");
-            System.out.println("Aplicando multa...");
-            reserva.setValor((reserva.getValor() + horasFaltando));
-
-        }
-
         reserva.cancelar();
-        System.out.println("Reserva cancelada com sucesso");
-    }
-    private boolean horariosConflitam(LocalDateTime inicio1, LocalDateTime fim1,
-                                      LocalDateTime inicio2, LocalDateTime fim2) {
-        return (inicio1.isBefore(fim2) && fim1.isAfter(inicio2));
-    }
-
-    public List<Reserva> getReservas() {
-        return reservas;
+        // Em banco real: reservaRepository.atualizar(reserva);
     }
 }

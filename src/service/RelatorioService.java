@@ -1,95 +1,82 @@
 package service;
 
 import com.lowagie.text.*;
-import model.*;
-import service.ReservaService;
-import service.LocacaoService;
-import com.lowagie.text.DocumentException;
+import com.lowagie.text.pdf.PdfPCell;
+import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfWriter;
-import exceptions.EquipamentoManutencao;
-import exceptions.EstoqueInsuficiente;
+import model.Cliente;
+import model.Equipamento;
+import model.Locacao;
+import model.Reserva;
 
+import java.awt.Color;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class RelatorioService {
-    private ReservaService reservaService;
-    private LocacaoService locacaoService;
+
+    private final ReservaService reservaService;
+    private final LocacaoService locacaoService;
+
+
+    private final DateTimeFormatter dtf = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+
     public RelatorioService(ReservaService reservaService, LocacaoService locacaoService) {
         this.reservaService = reservaService;
         this.locacaoService = locacaoService;
     }
 
-    public List<Reserva> listarReservas() {
-        List<Reserva> reservas = reservaService.getReservas();
-        System.out.println("Reservas listado");
-        if(reservas.isEmpty()) {
-            System.out.println("Nenhuma reserva encontrada");
-        } else {
-        for(Reserva reserva : reservas) {
-            Duration duracao = Duration.between(reserva.getInicio(),  reserva.getFim());
-            System.out.println("\n");
-            System.out.println("Cliente da reserva: " + reserva.getCliente().getDocumento());
 
-            System.out.println("id da reserva: " + reserva.getIdReserva());
-            System.out.println("local da reserva: " + reserva.getLocal().getNome());
-            System.out.println("condicao do local da reserva :" + reserva.getLocal().getCondicao());
-            System.out.println("duracao da reserva: " + duracao);
-            System.out.printf("taxa de ocupacao: %d / %d\n", reserva.getConvidados(), reserva.getLocal().getCapacidade());
-            System.out.println("Status da reserva:" + reserva.getStatus());
+    public void gerarPdfListaReservas(String nomeArquivo) {
+        Document document = new Document();
+        try {
+            PdfWriter.getInstance(document, new FileOutputStream(nomeArquivo));
+            document.open();
 
+            adicionarCabecalho(document, "Relatório Geral de Reservas");
+
+            List<Reserva> reservas = reservaService.listarReservas();
+
+            if (reservas.isEmpty()) {
+                document.add(new Paragraph("Nenhuma reserva cadastrada no sistema."));
+            } else {
+                // Cria tabela com 6 colunas
+                PdfPTable table = new PdfPTable(6);
+                table.setWidthPercentage(100);
+
+                // Cabeçalhos da Tabela
+                adicionarCelulaCabecalho(table, "ID");
+                adicionarCelulaCabecalho(table, "Cliente");
+                adicionarCelulaCabecalho(table, "Local");
+                adicionarCelulaCabecalho(table, "Início");
+                adicionarCelulaCabecalho(table, "Fim");
+                adicionarCelulaCabecalho(table, "Status");
+
+                for (Reserva r : reservas) {
+                    table.addCell(String.valueOf(r.getIdReserva()));
+                    table.addCell(r.getCliente() != null ? r.getCliente().getNome() : "N/A");
+                    table.addCell(r.getLocal().getNome());
+                    table.addCell(r.getInicio().format(dtf));
+                    table.addCell(r.getFim().format(dtf));
+                    table.addCell(r.getStatus().toString());
+                }
+                document.add(table);
+            }
+
+            System.out.println("📄 PDF '" + nomeArquivo + "' gerado com sucesso!");
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            if(document.isOpen()) document.close();
         }
-        }
-
-        return reservas;
-    }
-    private void imprimirLocacao(Locacao l) {
-
-        System.out.println("\n-------------------------------");
-        System.out.println("Funcionario: " +
-                (l.getFuncionario() != null ? l.getFuncionario().getCpf() : "N/A"));
-
-        System.out.println("Início: " + l.getInicio());
-        System.out.println("Fim: " + l.getFim());
-        System.out.println("Devolvido: " + (l.isDevolvido() ? "Sim" : "Não"));
-
-        System.out.println("Equipamentos:");
-        l.getEquipamentos().forEach((equip, qtd) ->
-                System.out.println("  - " + equip.getNome() + " (Qtd: " + qtd + ")")
-        );
-    }
-
-    public List<Reserva> listarReservasPorCliente(String documentoCliente) {
-
-        List<Reserva> reservasFiltradas = reservaService.getReservas().stream()
-                .filter(r -> r.getCliente() != null &&
-                        r.getCliente().getDocumento().equals(documentoCliente))
-                .toList();
-
-        if (reservasFiltradas.isEmpty()) {
-            System.out.println("\nNenhuma reserva encontrada para o cliente: " + documentoCliente);
-            return reservasFiltradas;
-        }
-
-        System.out.println("\n===== RESERVAS DO CLIENTE: " + documentoCliente + " =====");
-
-        reservasFiltradas.forEach(r -> {
-            System.out.println("\n----------------------------------");
-            System.out.println("ID: " + r.getIdReserva());
-            System.out.println("Local: " + r.getLocal().getNome());
-            System.out.println("Convidados: " + r.getConvidados());
-            System.out.println("Início: " + r.getInicio());
-            System.out.println("Fim: " + r.getFim());
-            System.out.println("Status: " + r.getStatus());
-        });
-
-        return reservasFiltradas;
     }
 
 
@@ -99,254 +86,240 @@ public class RelatorioService {
             PdfWriter.getInstance(document, new FileOutputStream(nomeArquivo));
             document.open();
 
-            Font fontTitulo = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16);
-            Font fontSubtitulo = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14, Font.UNDERLINE);
-            Font fontNormal = FontFactory.getFont(FontFactory.HELVETICA, 12);
+            adicionarCabecalho(document, "Histórico do Cliente: " + documentoCliente);
 
-            document.add(new Paragraph("HISTÓRICO DO CLIENTE: " + documentoCliente, fontTitulo));
-            document.add(new Paragraph(" ")); // Espaço em branco
+            // --- Parte 1: Reservas ---
+            Paragraph subtituloReserva = new Paragraph("Histórico de Reservas", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14));
+            subtituloReserva.setSpacingAfter(10);
+            subtituloReserva.setSpacingBefore(10);
+            document.add(subtituloReserva);
 
-            // --- SEÇÃO DE RESERVAS ---
-            document.add(new Paragraph("RESERVAS DE ESPAÇO", fontSubtitulo));
-
-            List<Reserva> reservas = reservaService.getReservas().stream()
+            List<Reserva> reservas = reservaService.listarReservas().stream()
                     .filter(r -> r.getCliente() != null && r.getCliente().getDocumento().equals(documentoCliente))
                     .toList();
 
             if (reservas.isEmpty()) {
-                document.add(new Paragraph("Nenhuma reserva registrada.", fontNormal));
+                document.add(new Paragraph("Nenhuma reserva encontrada para este cliente."));
             } else {
+                PdfPTable table = new PdfPTable(4);
+                table.setWidthPercentage(100);
+                adicionarCelulaCabecalho(table, "Local");
+                adicionarCelulaCabecalho(table, "Data");
+                adicionarCelulaCabecalho(table, "Convidados");
+                adicionarCelulaCabecalho(table, "Status");
+
                 for (Reserva r : reservas) {
-                    String texto = String.format("Local: %s | Data: %s | Status: %s",
-                            r.getLocal().getNome(), r.getInicio().toLocalDate(), r.getStatus());
-                    document.add(new Paragraph(texto, fontNormal));
+                    table.addCell(r.getLocal().getNome());
+                    table.addCell(r.getInicio().format(dtf));
+                    table.addCell(String.valueOf(r.getConvidados()));
+                    table.addCell(r.getStatus().toString());
                 }
+                document.add(table);
             }
 
-            document.add(new Paragraph(" ")); // Espaço
-
-            // --- SEÇÃO DE LOCAÇÕES ---
-            document.add(new Paragraph("LOCAÇÕES DE EQUIPAMENTOS", fontSubtitulo));
+            // --- Parte 2: Locações ---
+            Paragraph subtituloLocacao = new Paragraph("Histórico de Locações", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14));
+            subtituloLocacao.setSpacingAfter(10);
+            subtituloLocacao.setSpacingBefore(20); // Espaço maior antes do novo bloco
+            document.add(subtituloLocacao);
 
             List<Locacao> locacoes = locacaoService.getLocacoes().stream()
                     .filter(l -> l.getCliente() != null && l.getCliente().getDocumento().equals(documentoCliente))
                     .toList();
 
             if (locacoes.isEmpty()) {
-                document.add(new Paragraph("Nenhuma locação registrada.", fontNormal));
+                document.add(new Paragraph("Nenhuma locação encontrada para este cliente."));
             } else {
                 for (Locacao l : locacoes) {
-                    document.add(new Paragraph("De: " + l.getInicio() + " Até: " + l.getFim(), fontNormal));
-                    document.add(new Paragraph("Itens:", fontNormal));
+                    Paragraph p = new Paragraph("• Locação em " + l.getInicio().format(dtf) + " - Devolvido: " + (l.isDevolvido() ? "Sim" : "Não"));
+                    document.add(p);
 
-                    // Lista os equipamentos indentados
-                    l.getEquipamentos().forEach((equip, qtd) -> {
-                        Paragraph item = new Paragraph("   • " + equip.getNome() + " (Qtd: " + qtd + ")", fontNormal);
-                        try { document.add(item); } catch (DocumentException e) {}
+                    com.lowagie.text.List listaEquip = new com.lowagie.text.List(false, 20);
+                    l.getEquipamentos().forEach((eq, qtd) -> {
+                        listaEquip.add(new ListItem(qtd + "x " + eq.getNome()));
                     });
-                    document.add(new Paragraph("-----------------------"));
+                    document.add(listaEquip);
+                    document.add(new Paragraph(" ")); // Linha em branco
                 }
             }
+
+            System.out.println("📄 PDF '" + nomeArquivo + "' gerado com sucesso!");
 
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
             if(document.isOpen()) document.close();
-            System.out.println("PDF do Cliente gerado: " + nomeArquivo);
         }
     }
+
+
     public void gerarPdfEquipamentosMaisUsados(LocalDateTime inicio, LocalDateTime fim, String nomeArquivo) {
         Document document = new Document();
         try {
             PdfWriter.getInstance(document, new FileOutputStream(nomeArquivo));
             document.open();
 
-            Font fontTitulo = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16);
-            Font fontNormal = FontFactory.getFont(FontFactory.HELVETICA, 12);
+            adicionarCabecalho(document, "Equipamentos Mais Usados");
+            document.add(new Paragraph("Período: " + inicio.format(dtf) + " até " + fim.format(dtf) + "\n\n"));
 
-            document.add(new Paragraph("EQUIPAMENTOS MAIS UTILIZADOS", fontTitulo));
-            document.add(new Paragraph("Período: " + inicio.toLocalDate() + " a " + fim.toLocalDate(), fontNormal));
-            document.add(new Paragraph(" "));
-
-
-            List<Locacao> locacoesPeriodo = locacaoService.getLocacoes().stream()
-                    .filter(l -> !l.getInicio().isAfter(fim) && !l.getFim().isBefore(inicio))
+            // Lógica de cálculo (reaproveitada)
+            Map<Equipamento, Integer> contagem = new HashMap<>();
+            List<Locacao> locacoes = locacaoService.getLocacoes().stream()
+                    .filter(l -> intersecta(l.getInicio(), l.getFim(), inicio, fim))
                     .toList();
 
-            if (locacoesPeriodo.isEmpty()) {
-                document.add(new Paragraph("Nenhum dado no período.", fontNormal));
-                return;
-            }
-
-            Map<Equipamento, Integer> usoEquipamentos = new HashMap<>();
-            for (Locacao loc : locacoesPeriodo) {
+            for (Locacao loc : locacoes) {
                 for (Map.Entry<Equipamento, Integer> entry : loc.getEquipamentos().entrySet()) {
-                    usoEquipamentos.put(entry.getKey(), usoEquipamentos.getOrDefault(entry.getKey(), 0) + entry.getValue());
+                    contagem.put(entry.getKey(), contagem.getOrDefault(entry.getKey(), 0) + entry.getValue());
                 }
             }
 
-            List<Map.Entry<Equipamento, Integer>> ranking = usoEquipamentos.entrySet()
-                    .stream()
-                    .sorted((a, b) -> b.getValue() - a.getValue())
-                    .toList();
+            if (contagem.isEmpty()) {
+                document.add(new Paragraph("Nenhuma locação no período."));
+            } else {
+                PdfPTable table = new PdfPTable(2);
+                table.setWidthPercentage(80);
+                table.setHorizontalAlignment(Element.ALIGN_LEFT);
+                adicionarCelulaCabecalho(table, "Equipamento");
+                adicionarCelulaCabecalho(table, "Qtd. Total Locada");
 
-            // Imprimir no PDF
-            int pos = 1;
-            for (Map.Entry<Equipamento, Integer> entry : ranking) {
-                String linha = String.format("%dº LUGAR: %s", pos++, entry.getKey().getNome());
-                String detalhe = String.format("    Total Unidades: %d", entry.getValue());
-
-                document.add(new Paragraph(linha, FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12)));
-                document.add(new Paragraph(detalhe, fontNormal));
-                document.add(new Paragraph(" "));
+                contagem.entrySet().stream()
+                        .sorted((a, b) -> b.getValue().compareTo(a.getValue()))
+                        .forEach(entry -> {
+                            table.addCell(entry.getKey().getNome());
+                            table.addCell(String.valueOf(entry.getValue()));
+                        });
+                document.add(table);
             }
+            System.out.println("📄 PDF '" + nomeArquivo + "' gerado com sucesso!");
 
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
             if(document.isOpen()) document.close();
-            System.out.println("PDF Equipamentos gerado: " + nomeArquivo);
         }
     }
-    private boolean intersecta(LocalDateTime aInicio, LocalDateTime aFim,
-                               LocalDateTime bInicio, LocalDateTime bFim) {
-        return !aInicio.isAfter(bFim) && !aFim.isBefore(bInicio);
-    }
+
+
     public void gerarPdfClientesMaisAtivos(LocalDateTime inicio, LocalDateTime fim, String nomeArquivo) {
         Document document = new Document();
         try {
             PdfWriter.getInstance(document, new FileOutputStream(nomeArquivo));
             document.open();
 
-            Font fontTitulo = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16);
-            Font fontDestaque = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12);
-            Font fontNormal = FontFactory.getFont(FontFactory.HELVETICA, 12);
+            adicionarCabecalho(document, "Ranking de Clientes Mais Ativos");
+            document.add(new Paragraph("Período: " + inicio.format(dtf) + " até " + fim.format(dtf) + "\n\n"));
 
-            document.add(new Paragraph("TOP CLIENTES (MAIS ATIVOS)", fontTitulo));
-            document.add(new Paragraph("Considerando Reservas e Locações", fontNormal));
-            document.add(new Paragraph("Período: " + inicio.toLocalDate() + " a " + fim.toLocalDate()));
-            document.add(new Paragraph(" "));
+            Map<String, Integer> atividade = new HashMap<>();
 
-
-            Map<String, Integer> contadorClientes = new HashMap<>();
-
-            for (Reserva reserva : reservaService.getReservas()) {
-                if (intersecta(reserva.getInicio(), reserva.getFim(), inicio, fim)) {
-                    String cpf = reserva.getCliente().getDocumento();
-                    contadorClientes.put(cpf, contadorClientes.getOrDefault(cpf, 0) + 1);
+            // Contar Reservas
+            for (Reserva r : reservaService.listarReservas()) {
+                if (intersecta(r.getInicio(), r.getFim(), inicio, fim) && r.getCliente() != null) {
+                    atividade.put(r.getCliente().getNome(), atividade.getOrDefault(r.getCliente().getNome(), 0) + 1);
                 }
             }
-            for (Locacao locacao : locacaoService.getLocacoes()) {
-                if (intersecta(locacao.getInicio(), locacao.getFim(), inicio, fim)) {
-                    String cpf = locacao.getCliente().getDocumento();
-                    contadorClientes.put(cpf, contadorClientes.getOrDefault(cpf, 0) + 1);
+            // Contar Locações
+            for (Locacao l : locacaoService.getLocacoes()) {
+                if (intersecta(l.getInicio(), l.getFim(), inicio, fim) && l.getCliente() != null) {
+                    atividade.put(l.getCliente().getNome(), atividade.getOrDefault(l.getCliente().getNome(), 0) + 1);
                 }
             }
 
-            if (contadorClientes.isEmpty()) {
-                document.add(new Paragraph("Nenhuma atividade registrada no período.", fontNormal));
+            if (atividade.isEmpty()) {
+                document.add(new Paragraph("Nenhuma atividade encontrada no período."));
             } else {
-                List<Map.Entry<String, Integer>> ranking = new ArrayList<>(contadorClientes.entrySet());
-                ranking.sort((a, b) -> b.getValue().compareTo(a.getValue()));
+                PdfPTable table = new PdfPTable(3); // Posicao, Nome, Atividades
+                table.setWidthPercentage(100);
+                adicionarCelulaCabecalho(table, "#");
+                adicionarCelulaCabecalho(table, "Cliente");
+                adicionarCelulaCabecalho(table, "Total de Atividades");
+
+                List<Map.Entry<String, Integer>> ranking = atividade.entrySet().stream()
+                        .sorted((a, b) -> b.getValue().compareTo(a.getValue()))
+                        .toList();
 
                 int pos = 1;
                 for (Map.Entry<String, Integer> entry : ranking) {
-                    String texto = String.format("#%d - Cliente CPF: %s", pos++, entry.getKey());
-                    String atividades = "      Total de Atividades: " + entry.getValue();
-
-                    document.add(new Paragraph(texto, fontDestaque));
-                    document.add(new Paragraph(atividades, fontNormal));
-                    document.add(new Paragraph("-----------------------"));
+                    table.addCell(String.valueOf(pos++) + "º");
+                    table.addCell(entry.getKey());
+                    table.addCell(String.valueOf(entry.getValue()));
                 }
+                document.add(table);
             }
+            System.out.println("📄 PDF '" + nomeArquivo + "' gerado com sucesso!");
 
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
             if(document.isOpen()) document.close();
-            System.out.println("PDF Clientes Ativos gerado: " + nomeArquivo);
         }
     }
+
+
     public void gerarPdfLocaisMaisUsados(LocalDateTime inicio, LocalDateTime fim, String nomeArquivo) {
-
-        // 1. Definições Iniciais do PDF
         Document document = new Document();
-
         try {
             PdfWriter.getInstance(document, new FileOutputStream(nomeArquivo));
             document.open();
 
-            // --- INÍCIO: Conteúdo do PDF ---
-
-            // Configuração de Fontes (Opcional, mas recomendado para estilo)
-            Font fontTitulo = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18, Font.UNDERLINE);
-            Font fontCabecalho = FontFactory.getFont(FontFactory.HELVETICA, 12, Font.BOLD);
-            Font fontCorpo = FontFactory.getFont(FontFactory.HELVETICA, 10);
-
-
-            // --- TITULO E PERÍODO ---
-            Paragraph titulo = new Paragraph("RELATÓRIO DE LOCAIS MAIS USADOS", fontTitulo);
-            titulo.setAlignment(Paragraph.ALIGN_CENTER);
-            titulo.setSpacingAfter(15f);
-            document.add(titulo);
-
-            Paragraph periodo = new Paragraph("Período: " + inicio.toLocalDate() + " até " + fim.toLocalDate(), fontCabecalho);
-            periodo.setSpacingAfter(10f);
-            document.add(periodo);
-
-            // --- LÓGICA DO RELATÓRIO (A mesma que você já tinha) ---
+            adicionarCabecalho(document, "Locais Mais Reservados");
+            document.add(new Paragraph("Período: " + inicio.format(dtf) + " até " + fim.format(dtf) + "\n\n"));
 
             Map<String, Integer> usoLocais = new HashMap<>();
+            reservaService.listarReservas().stream()
+                    .filter(r -> intersecta(r.getInicio(), r.getFim(), inicio, fim))
+                    .forEach(r -> {
+                        String nome = r.getLocal().getNome();
+                        usoLocais.put(nome, usoLocais.getOrDefault(nome, 0) + 1);
+                    });
 
-            List<Reserva> reservasPeriodo = reservaService.getReservas().stream()
-                    .filter(r -> r.getLocal() != null && intersecta(r.getInicio(), r.getFim(), inicio, fim))
-                    .toList();
+            if (usoLocais.isEmpty()) {
+                document.add(new Paragraph("Nenhuma reserva encontrada."));
+            } else {
+                PdfPTable table = new PdfPTable(2);
+                table.setWidthPercentage(80);
+                table.setHorizontalAlignment(Element.ALIGN_LEFT);
+                adicionarCelulaCabecalho(table, "Local Esportivo");
+                adicionarCelulaCabecalho(table, "Reservas Feitas");
 
-            if (reservasPeriodo.isEmpty()) {
-                document.add(new Paragraph("Nenhuma reserva encontrada no período.", fontCorpo));
-                System.out.println("PDF gerado, mas sem reservas encontradas no período.");
-                return;
+                usoLocais.entrySet().stream()
+                        .sorted((a, b) -> b.getValue().compareTo(a.getValue()))
+                        .forEach(entry -> {
+                            table.addCell(entry.getKey());
+                            table.addCell(String.valueOf(entry.getValue()));
+                        });
+                document.add(table);
             }
+            System.out.println("📄 PDF '" + nomeArquivo + "' gerado com sucesso!");
 
-            for (Reserva reserva : reservasPeriodo) {
-                String nomeLocal = reserva.getLocal().getNome();
-                usoLocais.put(nomeLocal, usoLocais.getOrDefault(nomeLocal, 0) + 1);
-            }
-
-            List<Map.Entry<String, Integer>> ranking = usoLocais.entrySet()
-                    .stream()
-                    .sorted((a, b) -> b.getValue() - a.getValue())
-                    .toList();
-
-            // --- GERAÇÃO DO RANKING NO PDF ---
-
-            Paragraph subtitulo = new Paragraph("Ranking de Locais mais reservados:", fontCabecalho);
-            subtitulo.setSpacingBefore(10f);
-            document.add(subtitulo);
-
-            int pos = 1;
-            for (Map.Entry<String, Integer> entry : ranking) {
-                String nomeLocal = entry.getKey();
-                int numReservas = entry.getValue();
-
-                String linha = String.format("%d) %s — %d reservas", pos++, nomeLocal, numReservas);
-
-                // Adiciona a linha como um Parágrafo simples
-                document.add(new Paragraph(linha, fontCorpo));
-            }
-
-            // --- FIM: Conteúdo do PDF ---
-
-        } catch (DocumentException e) {
-            System.err.println("Erro ao gerar PDF (DocumentException): " + e.getMessage());
-        } catch (IOException e) {
-            System.err.println("Erro de IO (arquivo): " + e.getMessage());
+        } catch (Exception e) {
+            e.printStackTrace();
         } finally {
-            if (document.isOpen()) {
-                document.close();
-                System.out.println("✅ Relatório PDF gerado com sucesso: " + nomeArquivo);
-            }
+            if(document.isOpen()) document.close();
+        }
+    }
 
-        }
-        }
+
+
+    private boolean intersecta(LocalDateTime aInicio, LocalDateTime aFim, LocalDateTime bInicio, LocalDateTime bFim) {
+        return !aInicio.isAfter(bFim) && !aFim.isBefore(bInicio);
+    }
+
+    // Adiciona um título padrão ao documento
+    private void adicionarCabecalho(Document document, String tituloTexto) throws DocumentException {
+        Font fontTitulo = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18, Color.BLACK);
+        Paragraph titulo = new Paragraph(tituloTexto, fontTitulo);
+        titulo.setAlignment(Element.ALIGN_CENTER);
+        titulo.setSpacingAfter(20);
+        document.add(titulo);
+    }
+
+    // Adiciona uma célula de cabeçalho estilizada na tabela
+    private void adicionarCelulaCabecalho(PdfPTable table, String texto) {
+        PdfPCell cell = new PdfPCell(new Phrase(texto, FontFactory.getFont(FontFactory.HELVETICA_BOLD)));
+        cell.setBackgroundColor(Color.LIGHT_GRAY);
+        cell.setHorizontalAlignment(Element.ALIGN_CENTER);
+        cell.setPadding(5);
+        table.addCell(cell);
+    }
 }
